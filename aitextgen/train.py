@@ -19,11 +19,12 @@ class ATGTransformer(pl.LightningModule):
     A training module for aitextgen.
     """
 
-    def __init__(self, model, dataset, hparams, tokenizer):
+    def __init__(self, model, dataset, val_dataset, hparams, tokenizer):
         super(ATGTransformer, self).__init__()
-        self.model, self.dataset, self.tokenizer = (
+        self.model, self.dataset, self.val_dataset, self.tokenizer = (
             model,
             dataset,
+            val_dataset,
             tokenizer,
         )
         self.save_hyperparameters(hparams)
@@ -35,6 +36,16 @@ class ATGTransformer(pl.LightningModule):
         outputs = self({"input_ids": batch, "labels": batch})
         loss = outputs[0]
 
+        self.log('train-loss', loss.item())
+
+        return {"loss": loss}
+
+    def validation_step(self, batch, batch_num):
+        outputs = self({"input_ids": batch, "labels": batch})
+        loss = outputs[0]
+
+        self.log('val-loss', loss.item())
+
         return {"loss": loss}
 
     def train_dataloader(self):
@@ -42,6 +53,15 @@ class ATGTransformer(pl.LightningModule):
             self.dataset,
             batch_size=self.hparams["batch_size"],
             shuffle=True,
+            pin_memory=self.hparams["pin_memory"],
+            num_workers=self.hparams["num_workers"],
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.hparams["batch_size"],
+            shuffle=False,
             pin_memory=self.hparams["pin_memory"],
             num_workers=self.hparams["num_workers"],
         )

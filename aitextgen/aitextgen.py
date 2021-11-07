@@ -551,6 +551,7 @@ class aitextgen:
     def train(
         self,
         train_data: Union[str, TokenDataset],
+        val_data: Union[str, TokenDataset],
         output_dir: str = "trained_model",
         fp16: bool = False,
         fp16_opt_level: str = "O1",
@@ -585,6 +586,7 @@ class aitextgen:
 
         :param train_data: Either a TokenDataset containing the samples to be trained, or
         a string containing the text to be trained (shortcut instead of dataset)
+        :param val_data: validation dataset - see train_data.
         :param output_dir: A string indicating where to store the resulting
         model file folder.
         :param fp16: Boolean whether to use fp16, assuming using a compatible GPU/TPU.
@@ -640,6 +642,21 @@ class aitextgen:
                 **kwargs,
             )
 
+        if isinstance(val_data, str):
+            block_size = model_max_length(self.model.config)
+            logger.info(
+                f"Loading text from {val_data} with generation length of {block_size}."
+            )
+            val_data = TokenDataset(
+                tokenizer=self.tokenizer,
+                bos_token=self.bos_token,
+                eos_token=self.eos_token,
+                unk_token=self.unk_token,
+                file_path=val_data,
+                block_size=block_size,
+                **kwargs,
+            )
+
         setattr(self.model.config, "line_by_line", train_data.line_by_line)
 
         if freeze_layers or self.openai_tf_gpt2 == "1558M":
@@ -673,7 +690,7 @@ class aitextgen:
         )
 
         # Wrap the model in a pytorch-lightning module
-        train_model = ATGTransformer(self.model, train_data, hparams, self.tokenizer)
+        train_model = ATGTransformer(self.model, train_data, val_data, hparams, self.tokenizer)
 
         # Begin training
         if seed:
