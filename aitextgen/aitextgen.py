@@ -746,6 +746,7 @@ class aitextgen:
                 )
             ],
             plugins=deepspeed_plugin,
+            val_check_interval=1.0 / block_size,
         )
 
         if fp16:
